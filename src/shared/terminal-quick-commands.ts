@@ -1,4 +1,5 @@
 import { isTuiAgent, TUI_AGENT_CONFIG } from './tui-agent-config'
+import { normalizeKeybinding } from './keybindings'
 import type {
   TerminalAgentQuickCommand,
   TerminalCommandQuickCommand,
@@ -134,10 +135,13 @@ export function normalizeTerminalQuickCommands(input: unknown): TerminalQuickCom
     }
     seenIds.add(id)
 
+    const normalizedKeybinding =
+      typeof record.keybinding === 'string' ? normalizeKeybinding(record.keybinding.trim()) : null
     const base = {
       id,
       label: label.slice(0, MAX_QUICK_COMMAND_LABEL_LENGTH),
       scope: normalizeTerminalQuickCommandScope(record.scope),
+      ...(normalizedKeybinding?.ok ? { keybinding: normalizedKeybinding.value } : {}),
       ...(record.openInBackground === true ? { openInBackground: true } : {})
     }
 
@@ -217,11 +221,13 @@ function isNormalizedTerminalQuickCommand(value: unknown, expected: TerminalQuic
         'agent',
         'prompt',
         'scope',
+        ...(expected.keybinding ? ['keybinding'] : []),
         ...(expected.openInBackground ? ['openInBackground'] : [])
       ]) &&
       command.action === 'agent-prompt' &&
       command.agent === expected.agent &&
       command.prompt === expected.prompt &&
+      command.keybinding === expected.keybinding &&
       command.openInBackground === expected.openInBackground
     )
   }
@@ -233,11 +239,13 @@ function isNormalizedTerminalQuickCommand(value: unknown, expected: TerminalQuic
       'command',
       'appendEnter',
       'scope',
+      ...(expected.keybinding ? ['keybinding'] : []),
       ...(expected.openInBackground ? ['openInBackground'] : [])
     ]) &&
     command.action === 'terminal-command' &&
     command.command === expected.command &&
     command.appendEnter === expected.appendEnter &&
+    command.keybinding === expected.keybinding &&
     command.openInBackground === expected.openInBackground
   )
 }
@@ -274,10 +282,15 @@ export function applyTerminalQuickCommandMutation(
     return [...commands, mutation.command]
   }
   const existing = commands[existingIndex]
-  const merged =
-    existing.openInBackground && mutation.command.openInBackground === undefined
-      ? { ...mutation.command, openInBackground: true }
-      : mutation.command
+  const desktopFields = {
+    ...(existing.openInBackground && mutation.command.openInBackground === undefined
+      ? { openInBackground: true }
+      : {}),
+    ...(existing.keybinding && mutation.command.keybinding === undefined
+      ? { keybinding: existing.keybinding }
+      : {})
+  }
+  const merged = { ...mutation.command, ...desktopFields }
   const next =
     !isTerminalAgentQuickCommand(merged) && merged.openInBackground && !merged.appendEnter
       ? { ...merged, appendEnter: true }

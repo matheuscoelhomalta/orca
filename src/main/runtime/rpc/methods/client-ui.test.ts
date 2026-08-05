@@ -227,6 +227,17 @@ describe('client UI RPC methods', () => {
       {
         type: 'upsert',
         command: {
+          id: 'desktop-shortcut',
+          label: 'Desktop shortcut',
+          action: 'terminal-command',
+          command: 'true',
+          appendEnter: true,
+          keybinding: 'Mod+Alt+U'
+        }
+      },
+      {
+        type: 'upsert',
+        command: {
           id: 'unsupported-agent',
           label: 'Unsupported agent',
           action: 'agent-prompt',

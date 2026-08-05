@@ -51,4 +51,28 @@ describe('shortcut groups', () => {
       expect.stringContaining('Go to File')
     ])
   })
+
+  it('reports a built-in shortcut that conflicts with a Quick Command', () => {
+    const catalog = buildShortcutDefinitionCatalog({
+      disabledTuiAgents: [],
+      pluginCommands: [],
+      keybindings: {},
+      terminalQuickCommands: [
+        {
+          id: 'source-control',
+          label: 'Source control command',
+          action: 'terminal-command',
+          command: 'git status',
+          appendEnter: true,
+          scope: { type: 'global' },
+          keybinding: 'Mod+Shift+G'
+        }
+      ],
+      platform: 'darwin'
+    })
+
+    expect(catalog.conflictByAction.get('sidebar.sourceControl.toggle')).toEqual([
+      expect.stringContaining('Source control command')
+    ])
+  })
 })

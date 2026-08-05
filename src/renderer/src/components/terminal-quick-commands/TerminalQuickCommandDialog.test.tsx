@@ -2,13 +2,14 @@
 
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TerminalQuickCommand } from '../../../../shared/types'
 import { TerminalQuickCommandDialog } from './TerminalQuickCommandDialog'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const mountedRoots: Root[] = []
+const shortcutFocusMock = vi.fn()
 
 async function renderDialog(
   command: TerminalQuickCommand,
@@ -45,6 +46,14 @@ function findAnimatedRowContaining(text: string): HTMLElement {
 }
 
 describe('TerminalQuickCommandDialog animation structure', () => {
+  beforeEach(() => {
+    shortcutFocusMock.mockReset()
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { ui: { setShortcutRecorderFocused: shortcutFocusMock } }
+    })
+  })
+
   afterEach(async () => {
     await act(async () => {
       for (const root of mountedRoots.splice(0)) {
@@ -160,5 +169,83 @@ describe('TerminalQuickCommandDialog animation structure', () => {
       advanced!.click()
     })
     expect(advancedRow.inert).toBe(false)
+  })
+
+  it('records, presents, and saves a valid shortcut without submitting early', async () => {
+    const { onSave } = await renderDialog({
+      id: 'qc-1',
+      label: 'Status',
+      action: 'terminal-command',
+      command: 'git status',
+      appendEnter: true,
+      scope: { type: 'global' }
+    })
+    const advanced = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Advanced'
+    )!
+    await act(async () => advanced.click())
+    const recorder = document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="Record Quick Command shortcut"]'
+    )!
+
+    await act(async () => recorder.click())
+    await act(async () => {
+      recorder.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'u',
+          code: 'KeyU',
+          ctrlKey: true,
+          altKey: true,
+          bubbles: true
+        })
+      )
+    })
+
+    expect(onSave).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Ctrl')
+    expect(shortcutFocusMock).toHaveBeenCalledWith(true)
+    const save = document.body.querySelector<HTMLButtonElement>('button[title^="Save ("]')!
+    await act(async () => save.click())
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ keybinding: 'Mod+Alt+U' }))
+  })
+
+  it('cancels recording with Escape and blocks built-in conflicts inline', async () => {
+    await renderDialog({
+      id: 'qc-1',
+      label: 'Status',
+      action: 'terminal-command',
+      command: 'git status',
+      appendEnter: true,
+      scope: { type: 'global' },
+      keybinding: 'Mod+Alt+U'
+    })
+    const advanced = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Advanced'
+    )!
+    await act(async () => advanced.click())
+    const recorder = document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="Change Quick Command shortcut"]'
+    )!
+
+    await act(async () => recorder.click())
+    await act(async () => {
+      recorder.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    })
+    expect(recorder.getAttribute('aria-pressed')).toBe('false')
+
+    await act(async () => recorder.click())
+    await act(async () => {
+      recorder.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'g',
+          code: 'KeyG',
+          ctrlKey: true,
+          shiftKey: true,
+          bubbles: true
+        })
+      )
+    })
+    expect(document.body.textContent).toContain('Show Source Control')
+    expect(document.body.querySelector('[role="status"]')).toBeTruthy()
   })
 })

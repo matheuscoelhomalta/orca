@@ -142,6 +142,32 @@ describe('terminal quick command dialog draft transitions', () => {
     expect(backToTerminal.draft.openInBackground).toBe(true)
   })
 
+  it('preserves the shortcut across action changes', () => {
+    const command: TerminalQuickCommand = {
+      id: 'qc-1',
+      label: 'Work',
+      action: 'terminal-command',
+      command: 'pnpm test',
+      appendEnter: true,
+      scope: { type: 'global' },
+      keybinding: 'Mod+Alt+U'
+    }
+
+    const toAgent = switchTerminalQuickCommandDialogAction(
+      command,
+      'agent-prompt',
+      createTerminalQuickCommandDialogDraftMemory(command, 'codex')
+    )
+    const backToTerminal = switchTerminalQuickCommandDialogAction(
+      toAgent.draft,
+      'terminal-command',
+      toAgent.memory
+    )
+
+    expect(toAgent.draft.keybinding).toBe('Mod+Alt+U')
+    expect(backToTerminal.draft.keybinding).toBe('Mod+Alt+U')
+  })
+
   it('restores background terminal commands as submitted execution', () => {
     const command: TerminalQuickCommand = {
       id: 'qc-1',

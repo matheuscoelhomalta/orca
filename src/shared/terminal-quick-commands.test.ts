@@ -183,6 +183,22 @@ describe('terminal quick commands', () => {
     ])
   })
 
+  it('normalizes one canonical shortcut and omits invalid shortcut data', () => {
+    expect(
+      normalizeTerminalQuickCommands([
+        { id: 'valid', label: 'Valid', command: 'true', keybinding: ' cmd + shift + u ' },
+        { id: 'bare', label: 'Bare', command: 'true', keybinding: 'U' },
+        { id: 'modifier', label: 'Modifier', command: 'true', keybinding: 'Shift' },
+        { id: 'empty', label: 'Empty', command: 'true', keybinding: '' }
+      ])
+    ).toEqual([
+      expect.objectContaining({ id: 'valid', keybinding: 'Cmd+Shift+U' }),
+      expect.not.objectContaining({ keybinding: expect.anything() }),
+      expect.not.objectContaining({ keybinding: expect.anything() }),
+      expect.not.objectContaining({ keybinding: expect.anything() })
+    ])
+  })
+
   it('normalizes background terminal commands to submitted execution', () => {
     expect(
       normalizeTerminalQuickCommands([
@@ -266,6 +282,10 @@ describe('terminal quick commands', () => {
     expect(parseNormalizedTerminalQuickCommands(canonical)).toEqual(canonical)
     expect(parseNormalizedTerminalQuickCommands([{ ...canonical[0], command: 42 }])).toBeNull()
     expect(
+      parseNormalizedTerminalQuickCommands([{ ...canonical[0], keybinding: 'Mod+Shift+U' }])
+    ).toEqual([{ ...canonical[0], keybinding: 'Mod+Shift+U' }])
+    expect(parseNormalizedTerminalQuickCommands([{ ...canonical[0], unexpected: true }])).toBeNull()
+    expect(
       parseNormalizedTerminalQuickCommands([...canonical, ...canonical.slice(0, 1)])
     ).toBeNull()
   })
@@ -306,6 +326,27 @@ describe('terminal quick commands', () => {
         command: edited
       })
     ).toEqual([{ ...edited, appendEnter: true, openInBackground: true }])
+  })
+
+  it('keeps all desktop-only presentation when an older client edits a command', () => {
+    const [existing] = normalizeTerminalQuickCommands([
+      {
+        id: 'desktop',
+        label: 'Desktop',
+        command: 'pnpm test',
+        keybinding: 'Mod+Alt+U',
+        openInBackground: true
+      }
+    ])
+    const edited = { ...existing!, label: 'Edited' }
+    delete edited.keybinding
+    delete edited.openInBackground
+
+    expect(
+      applyTerminalQuickCommandMutation([existing!], { type: 'upsert', command: edited })
+    ).toEqual([
+      expect.objectContaining({ keybinding: 'Mod+Alt+U', openInBackground: true, label: 'Edited' })
+    ])
   })
 
   it('matches global commands everywhere and repo commands only in their repo', () => {

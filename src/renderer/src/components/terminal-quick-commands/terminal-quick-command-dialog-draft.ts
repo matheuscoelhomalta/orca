@@ -64,6 +64,7 @@ export function switchTerminalQuickCommandDialogAction(
     id: draft.id,
     label: draft.label,
     scope: getTerminalQuickCommandScope(draft),
+    ...(draft.keybinding ? { keybinding: draft.keybinding } : {}),
     ...(draft.openInBackground ? { openInBackground: true } : {})
   }
 

@@ -4,6 +4,9 @@ import { isTerminalAgentQuickCommand } from '../../../../shared/terminal-quick-c
 import type { TerminalQuickCommand } from '../../../../shared/types'
 import { AgentIcon, getAgentLabel } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
+import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
+import { formatKeybinding, isDoubleTapBinding } from '../../../../shared/keybindings'
+import { getShortcutPlatform } from '@/lib/shortcut-platform'
 
 type TabBarQuickCommandItemProps = {
   command: TerminalQuickCommand
@@ -18,6 +21,7 @@ export function TabBarQuickCommandItem({
   onEdit,
   onDelete
 }: TabBarQuickCommandItemProps): React.JSX.Element {
+  const platform = getShortcutPlatform()
   return (
     <CommandItem
       value={command.id}
@@ -43,6 +47,14 @@ export function TabBarQuickCommandItem({
             : command.command}
         </span>
       </span>
+      {command.keybinding ? (
+        <ShortcutKeyCombo
+          keys={formatKeybinding(command.keybinding, platform)}
+          doubleTap={isDoubleTapBinding(command.keybinding)}
+          className="shrink-0 group-hover/qc:hidden group-data-[selected=true]/qc:hidden"
+          keyCapClassName="px-1 py-0 text-[10px] min-w-5"
+        />
+      ) : null}
       <span className="flex shrink-0 items-center gap-0.5 can-hover:opacity-0 transition-opacity group-hover/qc:opacity-100 group-data-[selected=true]/qc:opacity-100">
         <button
           type="button"

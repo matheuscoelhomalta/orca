@@ -47,7 +47,8 @@ import type {
   BrowserViewportOverride,
   BrowserCertificateFailure,
   BrowserLoadError,
-  BrowserSessionUserAgentMode
+  BrowserSessionUserAgentMode,
+  TerminalQuickCommand
 } from '../../shared/types'
 import {
   type BrowserAnnotationViewportBridgeOptions,
@@ -218,6 +219,7 @@ export class BrowserManager {
     | (() => {
         keybindings?: KeybindingOverrides
         mobileEmulatorEnabled?: boolean
+        terminalQuickCommands?: readonly TerminalQuickCommand[]
       })
     | null = null
   private readonly webContentsIdByTabId = new Map<string, number>()
@@ -281,6 +283,7 @@ export class BrowserManager {
     resolver: () => {
       keybindings?: KeybindingOverrides
       mobileEmulatorEnabled?: boolean
+      terminalQuickCommands?: readonly TerminalQuickCommand[]
     }
   ): void {
     this.settingsResolver = resolver
@@ -1748,6 +1751,7 @@ export class BrowserManager {
         shouldForwardDictationShortcut: () => this.shouldForwardDictationShortcut?.() ?? false,
         isMobileEmulatorEnabled: () => this.settingsResolver?.().mobileEmulatorEnabled !== false,
         getKeybindings: () => this.settingsResolver?.().keybindings,
+        getQuickCommands: () => this.settingsResolver?.().terminalQuickCommands,
         resolveWorktreeId: (tabId) => this.worktreeIdByTabId.get(tabId) ?? null,
         resolveWorkspaceId: (tabId) => this.workspaceIdByPageId.get(tabId) ?? null
       })

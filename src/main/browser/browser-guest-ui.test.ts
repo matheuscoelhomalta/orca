@@ -467,6 +467,39 @@ describe('setupGuestShortcutForwarding', () => {
     guestOffMock = vi.fn()
   })
 
+  it('forwards a unique Quick Command id once and suppresses held-key repeats', () => {
+    setupGuestShortcutForwarding({
+      browserTabId,
+      guest: makeGuest(),
+      resolveRenderer: () => makeRenderer(),
+      resolveWorktreeId: () => 'repo-1::/workspace',
+      getQuickCommands: () => [
+        {
+          id: 'status',
+          label: 'Status',
+          action: 'terminal-command',
+          command: 'git status',
+          appendEnter: true,
+          scope: { type: 'global' },
+          keybinding: 'Mod+Alt+U'
+        }
+      ]
+    })
+
+    const preventDefault = triggerBeforeInput({ code: 'KeyU', key: 'u', alt: true })
+    const repeatPreventDefault = triggerBeforeInput({
+      code: 'KeyU',
+      key: 'u',
+      alt: true,
+      isAutoRepeat: true
+    })
+
+    expect(preventDefault).toHaveBeenCalledOnce()
+    expect(repeatPreventDefault).not.toHaveBeenCalled()
+    expect(rendererSendMock).toHaveBeenCalledOnce()
+    expect(rendererSendMock).toHaveBeenCalledWith('ui:runQuickCommand', 'status')
+  })
+
   it('commits Ctrl+Tab switching from focused guest pages on generic release events', () => {
     setupGuestShortcutForwarding({
       browserTabId,

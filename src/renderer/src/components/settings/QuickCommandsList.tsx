@@ -16,6 +16,9 @@ import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { RepoBadgeMark } from '../repo/RepoBadgeLabel'
 import { getQuickCommandRepoLabel } from './QuickCommandsScopeFilter'
+import { ShortcutKeyCombo } from '../ShortcutKeyCombo'
+import { formatKeybinding, isDoubleTapBinding } from '../../../../shared/keybindings'
+import { getShortcutPlatform } from '@/lib/shortcut-platform'
 
 function getScopeLabel(
   scope: TerminalQuickCommandScope,
@@ -40,6 +43,7 @@ function QuickCommandRow({
   onRemove: (command: TerminalQuickCommand) => void
 }): React.JSX.Element {
   const scope = getTerminalQuickCommandScope(command)
+  const platform = getShortcutPlatform()
   return (
     <div className="flex items-center gap-3 rounded-md border border-border/60 bg-background px-3 py-2 shadow-xs">
       <div className="min-w-0 flex-1">
@@ -76,6 +80,13 @@ function QuickCommandRow({
           </span>
         </div>
       </div>
+      {command.keybinding ? (
+        <ShortcutKeyCombo
+          keys={formatKeybinding(command.keybinding, platform)}
+          doubleTap={isDoubleTapBinding(command.keybinding)}
+          className="shrink-0"
+        />
+      ) : null}
       <div className="shrink-0 text-[11px] font-medium text-foreground/75">
         {isTerminalAgentQuickCommand(command)
           ? translate('auto.components.settings.QuickCommandsPane.4ccc63da87', 'Agent')

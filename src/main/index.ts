@@ -2288,7 +2288,10 @@ void app.whenReady().then(async () => {
       }
     }
   })
-  browserManager.setSettingsResolver(() => ({ keybindings: keybindings?.getOverrides() }))
+  browserManager.setSettingsResolver(() => ({
+    keybindings: keybindings?.getOverrides(),
+    terminalQuickCommands: store!.getSettings().terminalQuickCommands
+  }))
   rateLimits.setInactiveClaudeAccountsResolver(() => {
     const settings = store!.getSettings()
     const activeIds = new Set(

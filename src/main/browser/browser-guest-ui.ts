@@ -21,6 +21,9 @@ import {
   toModifierDoubleTapEvent
 } from '../../shared/modifier-double-tap-detector'
 import type { BrowserFindSource } from '../../shared/browser-find-source'
+import type { TerminalQuickCommand } from '../../shared/types'
+import { resolveTerminalQuickCommandKeybinding } from '../../shared/terminal-quick-command-keybindings'
+import { getRepoIdFromWorktreeId } from '../../shared/worktree-id'
 
 type ResolveRenderer = (browserTabId: string) => Electron.WebContents | null
 type ShouldForwardDictationShortcut = () => boolean
@@ -263,6 +266,7 @@ export function setupGuestShortcutForwarding(args: {
   shouldForwardDictationShortcut?: ShouldForwardDictationShortcut
   isMobileEmulatorEnabled?: IsMobileEmulatorEnabled
   getKeybindings?: () => KeybindingOverrides | undefined
+  getQuickCommands?: () => readonly TerminalQuickCommand[] | undefined
   // Why: a floating-panel guest owns a distinct workspace; its close/index chords must route to the panel, not the main tab strip.
   resolveWorktreeId?: (browserTabId: string) => string | null
   resolveWorkspaceId?: (browserTabId: string) => string | null
@@ -274,6 +278,7 @@ export function setupGuestShortcutForwarding(args: {
     shouldForwardDictationShortcut,
     isMobileEmulatorEnabled,
     getKeybindings,
+    getQuickCommands,
     resolveWorktreeId,
     resolveWorkspaceId
   } = args
@@ -461,7 +466,22 @@ export function setupGuestShortcutForwarding(args: {
       }
       renderer.send('ui:dictationKeyDown')
     } else {
-      return false
+      const worktreeId = resolveWorktreeId?.(browserTabId) ?? null
+      const resolution = resolveTerminalQuickCommandKeybinding({
+        commands: getQuickCommands?.() ?? [],
+        input,
+        platform: process.platform,
+        repoId:
+          worktreeId && worktreeId !== FLOATING_TERMINAL_WORKTREE_ID
+            ? getRepoIdFromWorktreeId(worktreeId)
+            : null,
+        keybindings,
+        reservedBindings: [{ binding: 'Mod+Enter', label: 'Save dialog' }]
+      })
+      if (resolution.status !== 'matched' && resolution.status !== 'ineligible') {
+        return false
+      }
+      renderer.send('ui:runQuickCommand', resolution.command.id)
     }
     // Why: preventDefault stops the guest page from also processing the chord (e.g. Cmd+T opening a browser-internal new-tab page).
     event.preventDefault()

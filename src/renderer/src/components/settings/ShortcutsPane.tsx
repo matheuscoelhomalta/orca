@@ -44,7 +44,10 @@ import {
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { translate } from '@/i18n/i18n'
 import { useEditablePluginCommands } from '@/store/plugin-panels'
-import { buildShortcutDefinitionCatalog } from './shortcut-definition-catalog'
+import {
+  buildShortcutDefinitionCatalog,
+  getQuickCommandConflictMessageForAction as getQuickCommandConflict
+} from './shortcut-definition-catalog'
 
 const isMac = navigator.userAgent.includes('Mac')
 const platform: NodeJS.Platform = isMac
@@ -61,6 +64,7 @@ export function ShortcutsPane(): React.JSX.Element {
   const updateSettings = useAppStore((state) => state.updateSettings)
   const keybindings = useAppStore((state) => state.keybindings)
   const keybindingSnapshot = useAppStore((state) => state.keybindingSnapshot)
+  const quickCommands = useAppStore((state) => state.settings?.terminalQuickCommands)
   const disabledTuiAgents = useAppStore(
     (state) => state.settings?.disabledTuiAgents ?? EMPTY_DISABLED_TUI_AGENTS
   )
@@ -97,9 +101,10 @@ export function ShortcutsPane(): React.JSX.Element {
           disabledTuiAgents,
           pluginCommands,
           keybindings,
+          terminalQuickCommands: quickCommands,
           platform
         }),
-      [disabledTuiAgents, keybindings, pluginCommands]
+      [disabledTuiAgents, keybindings, pluginCommands, quickCommands]
     )
   const definitionForAction = (actionId: KeybindingActionId): KeybindingDefinition | null =>
     definitionsByAction.get(actionId) ?? getKeybindingDefinition(actionId)
@@ -194,15 +199,16 @@ export function ShortcutsPane(): React.JSX.Element {
     const blockingConflict = findKeybindingConflictsForDefinitions(definitions, platform, next, {
       ignoredActionIds: ignoredConflictActionIds
     }).find((conflict) => conflict.actionIds.includes(actionId))
-    if (blockingConflict) {
-      const labels = blockingConflict.actionIds
+    const quickCommandConflict = getQuickCommandConflict(actionId, quickCommands, platform, next)
+    if (blockingConflict || quickCommandConflict) {
+      const labels = blockingConflict?.actionIds
         .filter((id) => id !== actionId)
         .map((id) => definitionsByAction.get(id)?.title ?? id)
         .join(', ')
-      setErrors((prev) => ({
-        ...prev,
-        [actionId]: `${formatKeybindingList([blockingConflict.binding], platform)} conflicts with ${labels}.`
-      }))
+      const message =
+        quickCommandConflict ??
+        `${formatKeybindingList([blockingConflict!.binding], platform)} conflicts with ${labels}.`
+      setErrors((prev) => ({ ...prev, [actionId]: message }))
       return false
     }
 

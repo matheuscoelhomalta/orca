@@ -743,6 +743,12 @@
             "additionalErrors": "{{count}} additional images could not be attached."
           }
         }
+      },
+      "quickCommandShortcutDispatch": {
+        "repoMismatch": "“{{value0}}” is not available in this workspace.",
+        "conflict": "This Quick Command shortcut has a conflict. Change it in Settings.",
+        "noWorkspace": "Open a workspace before running this Quick Command.",
+        "noGroup": "No tab group is available for this Quick Command."
       }
     },
     "hooks": {
@@ -2739,6 +2745,18 @@
               "b83efc79e2": "Global",
               "c25cf350ef": "Scope",
               "f0631e4999": "repo"
+            },
+            "TerminalQuickCommandAdvancedSection": {
+              "shortcut": "Keyboard shortcut",
+              "shortcutDescription": "Run this command in the focused workspace and tab group."
+            },
+            "TerminalQuickCommandShortcutRecorder": {
+              "listening": "Press shortcut keys. Escape cancels.",
+              "change": "Change Quick Command shortcut",
+              "record": "Record Quick Command shortcut",
+              "pressKeys": "Press keys…",
+              "recordAction": "Record shortcut",
+              "clear": "Clear Quick Command shortcut"
             }
           }
         },

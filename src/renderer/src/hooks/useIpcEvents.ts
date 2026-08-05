@@ -149,6 +149,7 @@ import {
 } from './agent-hook-completion-notifications'
 import { shouldSuppressCodexAutoApprovalStatus } from '@/components/terminal-pane/codex-auto-approval-notification-suppression'
 import { showTerminalShortcutCaptureNotification } from '@/lib/terminal-shortcut-capture-notification'
+import { dispatchQuickCommandShortcut } from '@/lib/quick-command-shortcut-dispatch'
 import { resolveAgentStatusTerminalTitle } from '@/lib/agent-status-terminal-title'
 import { titleHasAgentName } from '../../../shared/agent-detection'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
@@ -1299,6 +1300,14 @@ export function useIpcEvents(): void {
         window.dispatchEvent(new CustomEvent(TOGGLE_QUICK_COMMANDS_MENU_EVENT))
       })
     )
+
+    if (window.api.ui.onRunQuickCommand) {
+      unsubs.push(
+        window.api.ui.onRunQuickCommand((commandId) => {
+          dispatchQuickCommandShortcut({ commandId, platform: getShortcutPlatform() })
+        })
+      )
+    }
 
     unsubs.push(
       window.api.ui.onOpenNewWorkspace(() => {

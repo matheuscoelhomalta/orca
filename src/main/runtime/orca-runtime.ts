@@ -3636,7 +3636,11 @@ export class OrcaRuntimeService {
     }
     return (this.store.getSettings().terminalQuickCommands ?? []).map((command) => {
       // Why: mobile clients predate desktop presentation fields and reject extra canonical keys.
-      const { openInBackground: _openInBackground, ...clientCommand } = command
+      const {
+        openInBackground: _openInBackground,
+        keybinding: _keybinding,
+        ...clientCommand
+      } = command
       return clientCommand
     })
   }

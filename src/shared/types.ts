@@ -2676,6 +2676,8 @@ export type TerminalQuickCommandBase = {
   id: string
   label: string
   scope?: TerminalQuickCommandScope
+  /** Desktop-only keyboard shortcut used to run this command. */
+  keybinding?: string
   /** Create the terminal without changing the active tab. */
   openInBackground?: boolean
 }

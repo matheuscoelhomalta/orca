@@ -1602,6 +1602,7 @@ describe('OrcaRuntimeService', () => {
         agent: 'codex' as const,
         prompt: 'Review this diff',
         scope: { type: 'global' as const },
+        keybinding: 'Mod+Alt+U',
         openInBackground: true
       }
     ]
@@ -1701,6 +1702,34 @@ describe('OrcaRuntimeService', () => {
       { ...existing, label: 'Edited', openInBackground: true }
     ])
     expect(runtime.getClientTerminalQuickCommands()[0]).not.toHaveProperty('openInBackground')
+  })
+
+  it('strips and preserves desktop shortcut data across paired-client edits', () => {
+    const existing = {
+      id: 'status',
+      label: 'Status',
+      action: 'terminal-command' as const,
+      command: 'git status',
+      appendEnter: true,
+      scope: { type: 'global' as const },
+      keybinding: 'Mod+Alt+U'
+    }
+    let settings = { ...store.getSettings(), terminalQuickCommands: [existing] }
+    const runtime = new OrcaRuntimeService({
+      ...store,
+      getSettings: () => settings,
+      updateSettings: (updates: Partial<typeof settings>) => {
+        settings = { ...settings, ...updates }
+      }
+    } as never)
+
+    runtime.updateClientTerminalQuickCommands({
+      type: 'upsert',
+      command: { ...existing, label: 'Edited', keybinding: undefined }
+    })
+
+    expect(settings.terminalQuickCommands).toEqual([{ ...existing, label: 'Edited' }])
+    expect(runtime.getClientTerminalQuickCommands()[0]).not.toHaveProperty('keybinding')
   })
 
   it('rejects a concurrent add after the quick command limit is reached', () => {

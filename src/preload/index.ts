@@ -3492,6 +3492,12 @@ const api = {
       ipcRenderer.on('ui:toggleQuickCommandsMenu', listener)
       return () => ipcRenderer.removeListener('ui:toggleQuickCommandsMenu', listener)
     },
+    onRunQuickCommand: (callback: (commandId: string) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, commandId: string): void =>
+        callback(commandId)
+      ipcRenderer.on('ui:runQuickCommand', listener)
+      return () => ipcRenderer.removeListener('ui:runQuickCommand', listener)
+    },
     onOpenNewWorkspace: (callback: () => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent) => callback()
       ipcRenderer.on('ui:openNewWorkspace', listener)

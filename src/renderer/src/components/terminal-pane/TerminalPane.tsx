@@ -186,6 +186,7 @@ import { TerminalSshReconnectOverlay } from './TerminalSshReconnectOverlay'
 import { TerminalRemoteRuntimeReconnectBanner } from './TerminalRemoteRuntimeReconnectBanner'
 import { selectTerminalTabAgentTypesByLeaf } from './terminal-tab-agent-type-index'
 import { canContinueAgentSessionInNewSession } from './terminal-agent-session-continuation'
+import { registerFocusedQuickCommandContext } from '@/lib/quick-command-shortcut-dispatch'
 import {
   updateTerminalRemoteRuntimeRecoveryUiState,
   type VisiblePtyRecoveryState
@@ -802,6 +803,25 @@ function TerminalPane(
         s.activeGroupIdByWorktree[worktreeId] ??
         null
     ) ?? null
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) {
+      return
+    }
+    return registerFocusedQuickCommandContext({
+      element,
+      worktreeId,
+      tabId,
+      getGroupId: () => quickCommandGroupId,
+      getCwd: () => {
+        const activePane = managerRef.current?.getActivePane()
+        return activePane
+          ? (paneCwdRef.current.get(activePane.id)?.cwd ?? cwd ?? null)
+          : (cwd ?? null)
+      }
+    })
+  }, [cwd, quickCommandGroupId, tabId, worktreeId])
 
   const openQuickCommandEditor = useCallback((scope: TerminalQuickCommandScope): void => {
     setQuickCommandDraft(createTerminalQuickCommandDraft(scope))

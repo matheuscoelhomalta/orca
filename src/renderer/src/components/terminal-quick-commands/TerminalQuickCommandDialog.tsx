@@ -22,6 +22,10 @@ import {
 import { Label } from '@/components/ui/label'
 import { getAgentCatalog } from '@/lib/agent-catalog'
 import { getScreenSubmitShortcutLabel, isScreenSubmitShortcut } from '@/lib/screen-submit-shortcut'
+import { getShortcutPlatform } from '@/lib/shortcut-platform'
+import { useAppStore } from '@/store'
+import { findTerminalQuickCommandKeybindingConflict } from '../../../../shared/terminal-quick-command-keybindings'
+import { formatKeybindingList } from '../../../../shared/keybindings'
 import { TerminalQuickCommandActionToggle } from './TerminalQuickCommandActionToggle'
 import { TerminalQuickCommandAdvancedSection } from './TerminalQuickCommandAdvancedSection'
 import { TerminalQuickCommandContentSection } from './TerminalQuickCommandContentSection'
@@ -69,6 +73,10 @@ export function TerminalQuickCommandDialog({
   const fallbackAgent: TuiAgent =
     getAgentCatalog().find((entry) => supportsTerminalAgentQuickCommand(entry.id))?.id ?? 'claude'
   const [draft, setDraft] = useState<TerminalQuickCommand>(command)
+  const [shortcutCaptureError, setShortcutCaptureError] = useState<string | null>(null)
+  const keybindings = useAppStore((state) => state.keybindings)
+  const terminalQuickCommands = useAppStore((state) => state.settings?.terminalQuickCommands)
+  const platform = getShortcutPlatform()
   const wasOpenRef = useRef(open)
   const syncedCommandRef = useRef(command)
   const draftMemoryRef = useRef(createTerminalQuickCommandDialogDraftMemory(command, fallbackAgent))
@@ -96,6 +104,7 @@ export function TerminalQuickCommandDialog({
     const commandScope = getTerminalQuickCommandScope(command)
     lastRepoScopeIdRef.current = commandScope.type === 'repo' ? commandScope.repoId : null
     setAdvancedOpen(false)
+    setShortcutCaptureError(null)
     setDraft({ ...command })
   }
 
@@ -143,7 +152,41 @@ export function TerminalQuickCommandDialog({
     })
   }
 
+  const getShortcutConflict = (
+    binding: string | undefined,
+    commands = terminalQuickCommands ?? [],
+    overrides = keybindings
+  ) =>
+    binding
+      ? findTerminalQuickCommandKeybindingConflict({
+          binding,
+          commands,
+          commandId: draft.id,
+          platform,
+          keybindings: overrides,
+          reservedBindings: [{ binding: 'Mod+Enter', label: 'Save dialog' }]
+        })
+      : null
+  const shortcutConflict = getShortcutConflict(draft.keybinding)
+  const shortcutConflictError = shortcutConflict
+    ? `${formatKeybindingList([shortcutConflict.binding], platform)} conflicts with ${shortcutConflict.ownerLabel}.`
+    : null
+  const shortcutError = shortcutCaptureError ?? shortcutConflictError
+
   const saveDraft = (): void => {
+    const freshState = useAppStore.getState()
+    const latestShortcutConflict = getShortcutConflict(
+      draft.keybinding,
+      freshState.settings?.terminalQuickCommands ?? [],
+      freshState.keybindings
+    )
+    if (latestShortcutConflict) {
+      setShortcutCaptureError(
+        `${formatKeybindingList([latestShortcutConflict.binding], platform)} conflicts with ${latestShortcutConflict.ownerLabel}.`
+      )
+      setAdvancedOpen(true)
+      return
+    }
     const next: TerminalQuickCommand = isTerminalAgentQuickCommand(draft)
       ? {
           id: draft.id,
@@ -152,6 +195,7 @@ export function TerminalQuickCommandDialog({
           agent: draft.agent,
           prompt: draft.prompt.trimEnd(),
           scope: selectedScope,
+          ...(draft.keybinding ? { keybinding: draft.keybinding } : {}),
           ...(draft.openInBackground ? { openInBackground: true } : {})
         }
       : {
@@ -161,6 +205,7 @@ export function TerminalQuickCommandDialog({
           command: draft.command.trimEnd(),
           appendEnter: draft.openInBackground ? true : draft.appendEnter,
           scope: selectedScope,
+          ...(draft.keybinding ? { keybinding: draft.keybinding } : {}),
           ...(draft.openInBackground ? { openInBackground: true } : {})
         }
     if (
@@ -179,7 +224,8 @@ export function TerminalQuickCommandDialog({
     draft.label.trim().length > 0 &&
     (isAgentAction
       ? draft.prompt.trimEnd().length > 0 && supportsTerminalAgentQuickCommand(draft.agent)
-      : draft.command.trimEnd().length > 0)
+      : draft.command.trimEnd().length > 0) &&
+    !shortcutError
   const submitShortcutLabel = getScreenSubmitShortcutLabel()
 
   return (
@@ -249,6 +295,10 @@ export function TerminalQuickCommandDialog({
             setDraft={setDraft}
             toggleAppendEnter={toggleAppendEnter}
             toggleOpenInBackground={toggleOpenInBackground}
+            platform={platform}
+            shortcutError={shortcutError}
+            onShortcutChange={(keybinding) => setDraft((current) => ({ ...current, keybinding }))}
+            onShortcutValidationError={setShortcutCaptureError}
           />
         </div>
 

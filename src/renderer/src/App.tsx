@@ -219,6 +219,7 @@ import {
   refreshTerminalProviderSnapshotCapabilities
 } from './components/terminal/terminal-provider-snapshot-capability'
 import { useRemoteRuntimeRecoveryTriggers } from './runtime/use-remote-runtime-recovery-triggers'
+import { dispatchQuickCommandShortcut } from '@/lib/quick-command-shortcut-dispatch'
 
 // Why: bound the resume-record loss window on a hard kill to ~1 min; capture skips unchanged records so per-tick cost is negligible.
 const SLEEPING_AGENT_RESUME_CAPTURE_INTERVAL_MS = 60_000
@@ -1868,6 +1869,19 @@ function App(): React.JSX.Element {
 
       // Skip editable surfaces so TipTap's Cmd+B bold works; this renderer-side fallback covers the blur→press IPC race (docs/markdown-cmd-b-bold-design.md).
       if (isEditableTarget(input.target)) {
+        return
+      }
+
+      if (
+        (context !== 'terminal' || (terminalShortcutPolicy ?? 'orca-first') === 'orca-first') &&
+        dispatchQuickCommandShortcut({
+          input,
+          platform: shortcutPlatform,
+          target: input.target,
+          floatingWorkspaceFocused: isFloatingWorkspacePanelFocused()
+        })
+      ) {
+        input.preventDefault()
         return
       }
 
