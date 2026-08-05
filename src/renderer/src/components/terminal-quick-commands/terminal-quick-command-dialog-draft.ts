@@ -47,7 +47,7 @@ export function rememberTerminalQuickCommandDialogDraft(
   return {
     ...memory,
     terminalCommand: draft.command,
-    terminalAppendEnter: draft.openInBackground ? true : draft.appendEnter
+    terminalAppendEnter: draft.openInBackground ? memory.terminalAppendEnter : draft.appendEnter
   }
 }
 

@@ -150,6 +150,8 @@ import {
 import { shouldSuppressCodexAutoApprovalStatus } from '@/components/terminal-pane/codex-auto-approval-notification-suppression'
 import { showTerminalShortcutCaptureNotification } from '@/lib/terminal-shortcut-capture-notification'
 import { dispatchQuickCommandShortcut } from '@/lib/quick-command-shortcut-dispatch'
+import { buildPluginCommandKeybindingDefinitions } from '@/lib/plugin-command-keybindings'
+import { collectActivePluginCommands, usePluginPanelsStore } from '@/store/plugin-panels'
 import { resolveAgentStatusTerminalTitle } from '@/lib/agent-status-terminal-title'
 import { titleHasAgentName } from '../../../shared/agent-detection'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
@@ -1303,8 +1305,16 @@ export function useIpcEvents(): void {
 
     if (window.api.ui.onRunQuickCommand) {
       unsubs.push(
-        window.api.ui.onRunQuickCommand((commandId) => {
-          dispatchQuickCommandShortcut({ commandId, platform: getShortcutPlatform() })
+        window.api.ui.onRunQuickCommand(({ commandId, sourceTabId }) => {
+          const pluginCommands = collectActivePluginCommands(
+            usePluginPanelsStore.getState().plugins
+          )
+          dispatchQuickCommandShortcut({
+            commandId,
+            sourceTabId,
+            platform: getShortcutPlatform(),
+            additionalDefinitions: buildPluginCommandKeybindingDefinitions(pluginCommands)
+          })
         })
       )
     }

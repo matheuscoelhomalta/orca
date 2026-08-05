@@ -36,6 +36,8 @@ import {
   switchTerminalQuickCommandDialogAction
 } from './terminal-quick-command-dialog-draft'
 import { translate } from '@/i18n/i18n'
+import { useEditablePluginCommands } from '@/store/plugin-panels'
+import { buildPluginCommandKeybindingDefinitions } from '@/lib/plugin-command-keybindings'
 
 type TerminalQuickCommandDialogMode = 'add' | 'edit'
 
@@ -76,6 +78,7 @@ export function TerminalQuickCommandDialog({
   const [shortcutCaptureError, setShortcutCaptureError] = useState<string | null>(null)
   const keybindings = useAppStore((state) => state.keybindings)
   const terminalQuickCommands = useAppStore((state) => state.settings?.terminalQuickCommands)
+  const pluginDefinitions = buildPluginCommandKeybindingDefinitions(useEditablePluginCommands())
   const platform = getShortcutPlatform()
   const wasOpenRef = useRef(open)
   const syncedCommandRef = useRef(command)
@@ -135,15 +138,15 @@ export function TerminalQuickCommandDialog({
   }
 
   const toggleOpenInBackground = (): void => {
-    if (!draft.openInBackground && !isTerminalAgentQuickCommand(draft)) {
-      draftMemoryRef.current = {
-        ...draftMemoryRef.current,
-        terminalAppendEnter: true
-      }
-    }
     setDraft((current) => {
       if (current.openInBackground) {
-        return { ...current, openInBackground: undefined }
+        return isTerminalAgentQuickCommand(current)
+          ? { ...current, openInBackground: undefined }
+          : {
+              ...current,
+              openInBackground: undefined,
+              appendEnter: draftMemoryRef.current.terminalAppendEnter
+            }
       }
       if (isTerminalAgentQuickCommand(current)) {
         return { ...current, openInBackground: true }
@@ -164,6 +167,7 @@ export function TerminalQuickCommandDialog({
           commandId: draft.id,
           platform,
           keybindings: overrides,
+          additionalDefinitions: pluginDefinitions,
           reservedBindings: [{ binding: 'Mod+Enter', label: 'Save dialog' }]
         })
       : null

@@ -481,7 +481,10 @@ export function setupGuestShortcutForwarding(args: {
       if (resolution.status !== 'matched' && resolution.status !== 'ineligible') {
         return false
       }
-      renderer.send('ui:runQuickCommand', resolution.command.id)
+      renderer.send('ui:runQuickCommand', {
+        commandId: resolution.command.id,
+        sourceTabId: browserTabId
+      })
     }
     // Why: preventDefault stops the guest page from also processing the chord (e.g. Cmd+T opening a browser-internal new-tab page).
     event.preventDefault()

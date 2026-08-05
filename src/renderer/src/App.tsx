@@ -188,7 +188,10 @@ import {
 import { PLUGIN_COMMAND_ALIAS_ACTION_IDS } from '../../shared/plugins/plugin-command-actions'
 import { registerAppCommandDispatcher } from '@/lib/app-command-dispatch'
 import { executePluginCommand } from '@/lib/plugin-command-execution'
-import { findPluginCommandForKeybinding } from '@/lib/plugin-command-keybindings'
+import {
+  buildPluginCommandKeybindingDefinitions,
+  findPluginCommandForKeybinding
+} from '@/lib/plugin-command-keybindings'
 import { usePluginCommands } from '@/store/plugin-panels'
 import {
   getRepoExecutionHostId,
@@ -1878,7 +1881,8 @@ function App(): React.JSX.Element {
           input,
           platform: shortcutPlatform,
           target: input.target,
-          floatingWorkspaceFocused: isFloatingWorkspacePanelFocused()
+          floatingWorkspaceFocused: isFloatingWorkspacePanelFocused(),
+          additionalDefinitions: buildPluginCommandKeybindingDefinitions(pluginCommands)
         })
       ) {
         input.preventDefault()

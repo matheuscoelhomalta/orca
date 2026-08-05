@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import type { KeybindingInput } from '../../../shared/keybindings'
+import type { KeybindingDefinition, KeybindingInput } from '../../../shared/keybindings'
 import {
   resolveTerminalQuickCommandById,
   resolveTerminalQuickCommandKeybinding,
@@ -19,6 +19,11 @@ type FocusedQuickCommandContext = {
   tabId: string
   getGroupId: () => string | null
   getCwd: () => string | null
+}
+
+type QuickCommandSourceContext = {
+  worktreeId: string
+  groupId: string
 }
 
 const focusedContexts = new Set<FocusedQuickCommandContext>()
@@ -75,6 +80,33 @@ function repoIdForWorktree(worktreeId: string): string | null {
   return repo && isGitRepoKind(repo) ? repo.id : null
 }
 
+function contextForSourceTab(sourceTabId: string): QuickCommandSourceContext | null {
+  const store = useAppStore.getState()
+  for (const [worktreeId, browserWorkspaces] of Object.entries(store.browserTabsByWorktree)) {
+    const browserWorkspace = browserWorkspaces.find(
+      (workspace) =>
+        (workspace.pageIds ?? []).includes(sourceTabId) || workspace.activePageId === sourceTabId
+    )
+    if (!browserWorkspace) {
+      continue
+    }
+    const unifiedTab = store.unifiedTabsByWorktree[worktreeId]?.find(
+      (tab) => tab.contentType === 'browser' && tab.entityId === browserWorkspace.id
+    )
+    if (!unifiedTab) {
+      return null
+    }
+    const group = store.groupsByWorktree[worktreeId]?.find((candidate) =>
+      candidate.tabOrder.includes(unifiedTab.id)
+    )
+    if (group) {
+      return { worktreeId, groupId: group.id }
+    }
+    return null
+  }
+  return null
+}
+
 function explainUnavailable(resolution: QuickCommandKeybindingResolution): void {
   if (resolution.status === 'ineligible') {
     toast.warning(
@@ -102,6 +134,8 @@ export type DispatchQuickCommandShortcutOptions = {
   platform: NodeJS.Platform
   target?: EventTarget | null
   floatingWorkspaceFocused?: boolean
+  sourceTabId?: string
+  additionalDefinitions?: readonly KeybindingDefinition[]
 }
 
 export function dispatchQuickCommandShortcut(
@@ -109,14 +143,23 @@ export function dispatchQuickCommandShortcut(
 ): boolean {
   const store = useAppStore.getState()
   const commands = store.settings?.terminalQuickCommands ?? []
-  const floatingFocused = options.floatingWorkspaceFocused ?? isFloatingWorkspacePanelFocused()
-  const worktreeId = floatingFocused ? FLOATING_TERMINAL_WORKTREE_ID : store.activeWorktreeId
+  const sourceContext = options.sourceTabId ? contextForSourceTab(options.sourceTabId) : null
+  if (options.sourceTabId && !sourceContext) {
+    return false
+  }
+  const floatingFocused =
+    sourceContext?.worktreeId === FLOATING_TERMINAL_WORKTREE_ID ||
+    (options.floatingWorkspaceFocused ?? isFloatingWorkspacePanelFocused())
+  const worktreeId =
+    sourceContext?.worktreeId ??
+    (floatingFocused ? FLOATING_TERMINAL_WORKTREE_ID : store.activeWorktreeId)
   const repoId = worktreeId ? repoIdForWorktree(worktreeId) : null
   const common = {
     commands,
     platform: options.platform,
     repoId,
     keybindings: store.keybindings,
+    additionalDefinitions: options.additionalDefinitions,
     reservedBindings: [{ binding: 'Mod+Enter', label: 'Save dialog' }]
   }
   const resolution = options.commandId
@@ -141,12 +184,16 @@ export function dispatchQuickCommandShortcut(
     return true
   }
   const activeGroupId =
-    store.activeGroupIdByWorktree[worktreeId] ?? store.groupsByWorktree[worktreeId]?.[0]?.id ?? null
+    sourceContext?.groupId ??
+    store.activeGroupIdByWorktree[worktreeId] ??
+    store.groupsByWorktree[worktreeId]?.[0]?.id ??
+    null
   const activeGroup = store.groupsByWorktree[worktreeId]?.find(
     (group) => group.id === activeGroupId
   )
   const allowTerminalChromeFallback =
-    floatingFocused || (store.activeView === 'terminal' && store.activeTabType === 'terminal')
+    !sourceContext &&
+    (floatingFocused || (store.activeView === 'terminal' && store.activeTabType === 'terminal'))
   const focusedContext =
     contextForTarget(options.target, worktreeId) ??
     (allowTerminalChromeFallback

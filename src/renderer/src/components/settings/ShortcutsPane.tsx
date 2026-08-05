@@ -199,7 +199,13 @@ export function ShortcutsPane(): React.JSX.Element {
     const blockingConflict = findKeybindingConflictsForDefinitions(definitions, platform, next, {
       ignoredActionIds: ignoredConflictActionIds
     }).find((conflict) => conflict.actionIds.includes(actionId))
-    const quickCommandConflict = getQuickCommandConflict(actionId, quickCommands, platform, next)
+    const quickCommandConflict = getQuickCommandConflict(
+      actionId,
+      quickCommands,
+      platform,
+      next,
+      definitions
+    )
     if (blockingConflict || quickCommandConflict) {
       const labels = blockingConflict?.actionIds
         .filter((id) => id !== actionId)
@@ -262,19 +268,7 @@ export function ShortcutsPane(): React.JSX.Element {
   }
 
   const resetBinding = async (actionId: KeybindingActionId): Promise<void> => {
-    setErrors((prev) => ({ ...prev, [actionId]: undefined }))
-    try {
-      await (hasCommonBindingOverride(keybindingSnapshot, actionId)
-        ? setKeybindingOverride(actionId, effectiveBindingsForAction(actionId, {}))
-        : resetKeybindingOverride(actionId))
-    } catch (error) {
-      if (mountedRef.current) {
-        setErrors((prev) => ({
-          ...prev,
-          [actionId]: error instanceof Error ? error.message : 'Failed to reset shortcut.'
-        }))
-      }
-    }
+    await saveBindings(actionId, effectiveBindingsForAction(actionId, {}))
   }
 
   const disableBinding = async (actionId: KeybindingActionId): Promise<void> => {

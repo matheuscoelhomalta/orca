@@ -1,11 +1,13 @@
 import {
   findKeybindingActionsForBinding,
+  getEffectiveKeybindingsForDefinition,
   getKeybindingConflictIdentity,
   getKeybindingDefinition,
   keybindingFromInput,
   keybindingMatchesInput,
   normalizeKeybinding,
   type KeybindingActionId,
+  type KeybindingDefinition,
   type KeybindingInput,
   type KeybindingOverrides,
   type KeybindingValidationResult
@@ -33,7 +35,7 @@ export type QuickCommandKeybindingConflict = {
   binding: string
   ownerId: string
   ownerLabel: string
-  ownerType: 'built-in' | 'quick-command' | 'reserved'
+  ownerType: 'built-in' | 'plugin' | 'quick-command' | 'reserved'
 }
 
 export type QuickCommandKeybindingResolution =
@@ -56,7 +58,8 @@ function canonicalBinding(command: TerminalQuickCommand): string | null {
 function builtInOwner(
   binding: string,
   platform: NodeJS.Platform,
-  overrides?: KeybindingOverrides
+  overrides?: KeybindingOverrides,
+  additionalDefinitions: readonly KeybindingDefinition[] = []
 ): QuickCommandKeybindingConflict | null {
   const ownerId = findKeybindingActionsForBinding(
     binding,
@@ -64,15 +67,56 @@ function builtInOwner(
     overrides,
     ALL_BUILT_IN_SCOPES
   )[0]
-  if (!ownerId) {
-    return null
+  if (ownerId) {
+    return {
+      binding,
+      ownerId,
+      ownerLabel: getKeybindingDefinition(ownerId)?.title ?? ownerId,
+      ownerType: 'built-in'
+    }
   }
-  return {
-    binding,
-    ownerId,
-    ownerLabel: getKeybindingDefinition(ownerId)?.title ?? ownerId,
-    ownerType: 'built-in'
+  const identity = getKeybindingConflictIdentity(binding, platform)
+  const dynamicOwner = additionalDefinitions.find((definition) =>
+    getEffectiveKeybindingsForDefinition(definition, platform, overrides).some(
+      (candidate) => getKeybindingConflictIdentity(candidate, platform) === identity
+    )
+  )
+  return dynamicOwner
+    ? {
+        binding,
+        ownerId: dynamicOwner.id,
+        ownerLabel: dynamicOwner.title,
+        ownerType: 'plugin'
+      }
+    : null
+}
+
+function definitionOwnsBinding(options: {
+  actionId: KeybindingActionId
+  binding: string
+  platform: NodeJS.Platform
+  overrides?: KeybindingOverrides
+  additionalDefinitions?: readonly KeybindingDefinition[]
+}): boolean {
+  const owners = findKeybindingActionsForBinding(
+    options.binding,
+    options.platform,
+    options.overrides,
+    ALL_BUILT_IN_SCOPES
+  )
+  if (owners.includes(options.actionId)) {
+    return true
   }
+  const definition = options.additionalDefinitions?.find(
+    (candidate) => candidate.id === options.actionId
+  )
+  const identity = getKeybindingConflictIdentity(options.binding, options.platform)
+  return (
+    definition?.defaultBindings !== undefined &&
+    getEffectiveKeybindingsForDefinition(definition, options.platform, options.overrides).some(
+      (candidate) => getKeybindingConflictIdentity(candidate, options.platform) === identity
+    )
+  )
 }
 
 export function findTerminalQuickCommandKeybindingConflict(options: {
@@ -82,13 +126,19 @@ export function findTerminalQuickCommandKeybindingConflict(options: {
   platform: NodeJS.Platform
   keybindings?: KeybindingOverrides
   reservedBindings?: readonly ReservedQuickCommandKeybinding[]
+  additionalDefinitions?: readonly KeybindingDefinition[]
 }): QuickCommandKeybindingConflict | null {
   const normalized = normalizeKeybinding(options.binding)
   if (!normalized.ok) {
     return null
   }
   const identity = getKeybindingConflictIdentity(normalized.value, options.platform)
-  const builtIn = builtInOwner(normalized.value, options.platform, options.keybindings)
+  const builtIn = builtInOwner(
+    normalized.value,
+    options.platform,
+    options.keybindings,
+    options.additionalDefinitions ?? []
+  )
   if (builtIn) {
     return builtIn
   }
@@ -128,19 +178,22 @@ export function findTerminalQuickCommandConflictForAction(options: {
   commands: readonly TerminalQuickCommand[]
   platform: NodeJS.Platform
   keybindings?: KeybindingOverrides
+  additionalDefinitions?: readonly KeybindingDefinition[]
 }): QuickCommandKeybindingConflict | null {
   for (const command of options.commands) {
     const binding = canonicalBinding(command)
     if (!binding) {
       continue
     }
-    const owners = findKeybindingActionsForBinding(
-      binding,
-      options.platform,
-      options.keybindings,
-      ALL_BUILT_IN_SCOPES
-    )
-    if (owners.includes(options.actionId)) {
+    if (
+      definitionOwnsBinding({
+        actionId: options.actionId,
+        binding,
+        platform: options.platform,
+        overrides: options.keybindings,
+        additionalDefinitions: options.additionalDefinitions
+      })
+    ) {
       return {
         binding,
         ownerId: command.id,
@@ -159,6 +212,7 @@ export function resolveTerminalQuickCommandKeybinding(options: {
   repoId: string | null
   keybindings?: KeybindingOverrides
   reservedBindings?: readonly ReservedQuickCommandKeybinding[]
+  additionalDefinitions?: readonly KeybindingDefinition[]
 }): QuickCommandKeybindingResolution {
   const captured = keybindingFromInput(options.input, options.platform)
   if (!captured.ok) {
@@ -182,7 +236,8 @@ export function resolveTerminalQuickCommandKeybinding(options: {
       commandId: command.id,
       platform: options.platform,
       keybindings: options.keybindings,
-      reservedBindings: options.reservedBindings
+      reservedBindings: options.reservedBindings,
+      additionalDefinitions: options.additionalDefinitions
     })
   ) {
     return { status: 'conflicted' }
@@ -199,6 +254,7 @@ export function resolveTerminalQuickCommandById(options: {
   repoId: string | null
   keybindings?: KeybindingOverrides
   reservedBindings?: readonly ReservedQuickCommandKeybinding[]
+  additionalDefinitions?: readonly KeybindingDefinition[]
 }): QuickCommandKeybindingResolution {
   const command = options.commands.find((candidate) => candidate.id === options.commandId)
   const binding = command ? canonicalBinding(command) : null
@@ -223,7 +279,8 @@ export function resolveTerminalQuickCommandById(options: {
       commandId: command.id,
       platform: options.platform,
       keybindings: options.keybindings,
-      reservedBindings: options.reservedBindings
+      reservedBindings: options.reservedBindings,
+      additionalDefinitions: options.additionalDefinitions
     })
   ) {
     return { status: 'conflicted' }

@@ -75,4 +75,68 @@ describe('shortcut groups', () => {
       expect.stringContaining('Source control command')
     ])
   })
+
+  it('reports a plugin shortcut that conflicts with a Quick Command', () => {
+    const command: ActivePluginCommand = {
+      pluginKey: 'orca-samples.tasks',
+      pluginName: 'Tasks',
+      id: 'open',
+      title: 'Open Tasks',
+      context: 'global',
+      handler: { type: 'built-in', action: 'view.tasks' },
+      keybindings: [{ key: 'Mod+Alt+T', when: 'global' }]
+    }
+    const catalog = buildShortcutDefinitionCatalog({
+      disabledTuiAgents: [],
+      pluginCommands: [command],
+      keybindings: {},
+      terminalQuickCommands: [
+        {
+          id: 'tasks',
+          label: 'Tasks command',
+          action: 'terminal-command',
+          command: 'pnpm test',
+          appendEnter: true,
+          keybinding: 'Mod+Alt+T'
+        }
+      ],
+      platform: 'darwin'
+    })
+
+    expect(catalog.conflictByAction.get('plugin:orca-samples.tasks/open')).toEqual([
+      expect.stringContaining('Tasks command')
+    ])
+  })
+
+  it('detects the Quick Command collision produced by resetting a built-in', () => {
+    const terminalQuickCommands = [
+      {
+        id: 'source-control',
+        label: 'Source control command',
+        action: 'terminal-command' as const,
+        command: 'git status',
+        appendEnter: true,
+        keybinding: 'Mod+Shift+G'
+      }
+    ]
+    const customized = buildShortcutDefinitionCatalog({
+      disabledTuiAgents: [],
+      pluginCommands: [],
+      keybindings: { 'sidebar.sourceControl.toggle': ['Mod+Alt+G'] },
+      terminalQuickCommands,
+      platform: 'darwin'
+    })
+    const reset = buildShortcutDefinitionCatalog({
+      disabledTuiAgents: [],
+      pluginCommands: [],
+      keybindings: {},
+      terminalQuickCommands,
+      platform: 'darwin'
+    })
+
+    expect(customized.conflictByAction.get('sidebar.sourceControl.toggle')).toBeUndefined()
+    expect(reset.conflictByAction.get('sidebar.sourceControl.toggle')).toEqual([
+      expect.stringContaining('Source control command')
+    ])
+  })
 })

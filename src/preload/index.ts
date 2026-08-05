@@ -3492,9 +3492,13 @@ const api = {
       ipcRenderer.on('ui:toggleQuickCommandsMenu', listener)
       return () => ipcRenderer.removeListener('ui:toggleQuickCommandsMenu', listener)
     },
-    onRunQuickCommand: (callback: (commandId: string) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, commandId: string): void =>
-        callback(commandId)
+    onRunQuickCommand: (
+      callback: (payload: { commandId: string; sourceTabId: string }) => void
+    ): (() => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        payload: { commandId: string; sourceTabId: string }
+      ): void => callback(payload)
       ipcRenderer.on('ui:runQuickCommand', listener)
       return () => ipcRenderer.removeListener('ui:runQuickCommand', listener)
     },

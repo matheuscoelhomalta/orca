@@ -150,6 +150,34 @@ describe('TerminalQuickCommandDialog animation structure', () => {
     )
   })
 
+  it('restores Insert after background mode is enabled and disabled', async () => {
+    const { onSave } = await renderDialog({
+      id: 'qc-1',
+      label: 'Insert status',
+      action: 'terminal-command',
+      command: 'git status',
+      appendEnter: false,
+      scope: { type: 'global' }
+    })
+    const advanced = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Advanced'
+    )!
+    const background = document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="Toggle open in background"]'
+    )!
+    const save = document.body.querySelector<HTMLButtonElement>('button[title^="Save ("]')!
+
+    await act(async () => {
+      advanced.click()
+      background.click()
+      background.click()
+    })
+    await act(async () => save.click())
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ appendEnter: false }))
+    expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('openInBackground')
+  })
+
   it('keeps collapsed advanced controls inert', async () => {
     await renderDialog({
       id: 'qc-1',

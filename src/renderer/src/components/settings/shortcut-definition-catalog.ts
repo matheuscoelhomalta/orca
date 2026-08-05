@@ -23,13 +23,15 @@ export function getQuickCommandConflictMessageForAction(
   actionId: KeybindingActionId,
   terminalQuickCommands: readonly TerminalQuickCommand[] | undefined,
   platform: NodeJS.Platform,
-  keybindings: KeybindingOverrides
+  keybindings: KeybindingOverrides,
+  additionalDefinitions: readonly KeybindingDefinition[] = []
 ): string | null {
   const conflict = findTerminalQuickCommandConflictForAction({
     actionId,
     commands: terminalQuickCommands ?? [],
     platform,
-    keybindings
+    keybindings,
+    additionalDefinitions
   })
   return conflict
     ? `${formatKeybindingList([conflict.binding], platform)} conflicts with Quick Command “${conflict.ownerLabel}”.`
@@ -76,7 +78,8 @@ export function buildShortcutDefinitionCatalog(options: {
       definition.id,
       options.terminalQuickCommands,
       options.platform,
-      options.keybindings
+      options.keybindings,
+      pluginDefinitions
     )
     if (!quickCommandConflict) {
       continue

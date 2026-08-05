@@ -73,6 +73,39 @@ describe('terminal quick command keybindings', () => {
     ).toMatchObject({ ownerLabel: 'Save dialog', ownerType: 'reserved' })
   })
 
+  it('blocks dynamic plugin definitions in both editing directions', () => {
+    const pluginDefinition = {
+      id: 'plugin:tasks/run' as const,
+      title: 'Run Tasks — Tasks',
+      group: 'Plugins',
+      scope: 'global' as const,
+      searchKeywords: ['plugin', 'tasks'],
+      defaultBindings: {
+        darwin: ['Mod+Alt+U'],
+        linux: ['Mod+Alt+U'],
+        win32: ['Mod+Alt+U']
+      }
+    }
+    const commands = [command('status', 'Mod+Alt+U')]
+
+    expect(
+      findTerminalQuickCommandKeybindingConflict({
+        binding: 'Mod+Alt+U',
+        commands: [],
+        platform: 'darwin',
+        additionalDefinitions: [pluginDefinition]
+      })
+    ).toMatchObject({ ownerId: 'plugin:tasks/run', ownerType: 'plugin' })
+    expect(
+      findTerminalQuickCommandConflictForAction({
+        actionId: 'plugin:tasks/run',
+        commands,
+        platform: 'darwin',
+        additionalDefinitions: [pluginDefinition]
+      })
+    ).toMatchObject({ ownerId: 'status' })
+  })
+
   it('expands digit-index built-in families in both conflict directions', () => {
     expect(
       findTerminalQuickCommandKeybindingConflict({

@@ -497,7 +497,10 @@ describe('setupGuestShortcutForwarding', () => {
     expect(preventDefault).toHaveBeenCalledOnce()
     expect(repeatPreventDefault).not.toHaveBeenCalled()
     expect(rendererSendMock).toHaveBeenCalledOnce()
-    expect(rendererSendMock).toHaveBeenCalledWith('ui:runQuickCommand', 'status')
+    expect(rendererSendMock).toHaveBeenCalledWith('ui:runQuickCommand', {
+      commandId: 'status',
+      sourceTabId: browserTabId
+    })
   })
 
   it('commits Ctrl+Tab switching from focused guest pages on generic release events', () => {

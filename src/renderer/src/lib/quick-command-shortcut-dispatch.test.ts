@@ -13,7 +13,15 @@ const { mockRun, mockToast, mockState } = vi.hoisted(() => ({
     activeView: 'terminal',
     activeTabType: 'terminal',
     activeGroupIdByWorktree: { 'repo-1::/workspace': 'group-1' } as Record<string, string>,
-    groupsByWorktree: {} as Record<string, { id: string; activeTabId?: string }[]>,
+    groupsByWorktree: {} as Record<
+      string,
+      { id: string; activeTabId?: string; tabOrder: string[] }[]
+    >,
+    browserTabsByWorktree: {} as Record<string, { id: string; pageIds: string[] }[]>,
+    unifiedTabsByWorktree: {} as Record<
+      string,
+      { id: string; contentType: string; entityId: string }[]
+    >,
     repos: [{ id: 'repo-1', kind: 'git' }],
     getKnownWorktreeById: vi.fn(() => ({ path: '/workspace' }))
   }
@@ -63,8 +71,10 @@ describe('quick command shortcut dispatch', () => {
     mockState.activeTabType = 'terminal'
     mockState.activeGroupIdByWorktree = { 'repo-1::/workspace': 'group-1' }
     mockState.groupsByWorktree = {
-      'repo-1::/workspace': [{ id: 'group-1', activeTabId: 'terminal-1' }]
+      'repo-1::/workspace': [{ id: 'group-1', activeTabId: 'terminal-1', tabOrder: ['terminal-1'] }]
     }
+    mockState.browserTabsByWorktree = {}
+    mockState.unifiedTabsByWorktree = {}
     mockState.getKnownWorktreeById.mockReturnValue({ path: '/workspace' })
   })
 
@@ -165,6 +175,50 @@ describe('quick command shortcut dispatch', () => {
     )
   })
 
+  it('uses the browser guest source tab instead of the active workspace', () => {
+    mockState.groupsByWorktree = {
+      ...mockState.groupsByWorktree,
+      'repo-2::/source': [
+        { id: 'source-group', activeTabId: 'unified-browser', tabOrder: ['unified-browser'] }
+      ]
+    }
+    mockState.browserTabsByWorktree = {
+      'repo-2::/source': [{ id: 'browser-workspace', pageIds: ['browser-1'] }]
+    }
+    mockState.unifiedTabsByWorktree = {
+      'repo-2::/source': [
+        { id: 'unified-browser', contentType: 'browser', entityId: 'browser-workspace' }
+      ]
+    }
+    mockState.getKnownWorktreeById.mockReturnValue({ path: '/source' })
+
+    expect(
+      dispatchQuickCommandShortcut({
+        commandId: 'status',
+        sourceTabId: 'browser-1',
+        platform: 'darwin'
+      })
+    ).toBe(true)
+    expect(mockRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeId: 'repo-2::/source',
+        groupId: 'source-group',
+        initialCwd: '/source'
+      })
+    )
+  })
+
+  it('rejects a stale browser guest source tab', () => {
+    expect(
+      dispatchQuickCommandShortcut({
+        commandId: 'status',
+        sourceTabId: 'deleted-browser',
+        platform: 'darwin'
+      })
+    ).toBe(false)
+    expect(mockRun).not.toHaveBeenCalled()
+  })
+
   it('explains repo mismatch and never retargets the command', () => {
     mockState.settings.terminalQuickCommands = [
       command('repo-only', { type: 'repo', repoId: 'repo-2' })
@@ -206,5 +260,29 @@ describe('quick command shortcut dispatch', () => {
     ).toBe(false)
     expect(mockRun).not.toHaveBeenCalled()
     expect(mockToast).toHaveBeenCalledOnce()
+  })
+
+  it('does not shadow a dynamic plugin shortcut', () => {
+    expect(
+      dispatchQuickCommandShortcut({
+        input: { key: 'u', code: 'KeyU', meta: true, alt: true },
+        platform: 'darwin',
+        additionalDefinitions: [
+          {
+            id: 'plugin:tasks/run',
+            title: 'Run Tasks — Tasks',
+            group: 'Plugins',
+            scope: 'global',
+            searchKeywords: ['plugin', 'tasks'],
+            defaultBindings: {
+              darwin: ['Mod+Alt+U'],
+              linux: ['Mod+Alt+U'],
+              win32: ['Mod+Alt+U']
+            }
+          }
+        ]
+      })
+    ).toBe(false)
+    expect(mockRun).not.toHaveBeenCalled()
   })
 })
