@@ -8,8 +8,10 @@ import { getConnectionId } from '@/lib/connection-context'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import type { PaneCwdMap } from './resolve-split-cwd'
 import type { TerminalQuickCommand } from '../../../../shared/types'
-import { isTerminalAgentQuickCommand } from '../../../../shared/terminal-quick-commands'
-import { sendTerminalQuickCommandToPane } from './terminal-quick-command-dispatch'
+import {
+  sendTerminalQuickCommandToPane,
+  shouldRunTerminalQuickCommandInNewTab
+} from './terminal-quick-command-dispatch'
 import { pasteTerminalText } from './terminal-bracketed-paste'
 import { pasteTerminalClipboard } from './terminal-clipboard-paste'
 import {
@@ -451,7 +453,7 @@ export function useTerminalPaneContextMenu({
   }
 
   const onQuickCommand = (command: TerminalQuickCommand): void => {
-    if (isTerminalAgentQuickCommand(command)) {
+    if (shouldRunTerminalQuickCommandInNewTab(command)) {
       runQuickCommandInNewTab({ command, worktreeId, groupId })
       return
     }

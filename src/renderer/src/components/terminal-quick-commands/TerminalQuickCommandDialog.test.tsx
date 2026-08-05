@@ -106,4 +106,25 @@ describe('TerminalQuickCommandDialog animation structure', () => {
       expect.objectContaining({ openInBackground: true, action: 'agent-prompt' })
     )
   })
+
+  it('keeps collapsed advanced controls inert', async () => {
+    await renderDialog({
+      id: 'qc-1',
+      label: 'Status',
+      action: 'terminal-command',
+      command: 'git status',
+      appendEnter: true,
+      scope: { type: 'global' }
+    })
+    const advancedRow = findAnimatedRowContaining('Open in background')
+    const advanced = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Advanced'
+    )
+
+    expect(advancedRow.inert).toBe(true)
+    await act(async () => {
+      advanced!.click()
+    })
+    expect(advancedRow.inert).toBe(false)
+  })
 })
