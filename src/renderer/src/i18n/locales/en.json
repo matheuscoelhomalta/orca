@@ -749,6 +749,13 @@
         "conflict": "This Quick Command shortcut has a conflict. Change it in Settings.",
         "noWorkspace": "Open a workspace before running this Quick Command.",
         "noGroup": "No tab group is available for this Quick Command."
+      },
+      "quickCommandKeybindingConflictCopy": {
+        "reserved": {
+          "saveDialog": "Save dialog"
+        },
+        "conflictsWithOwner": "{{binding}} conflicts with {{owner}}.",
+        "conflictsWithQuickCommand": "{{binding}} conflicts with Quick Command “{{command}}”."
       }
     },
     "hooks": {

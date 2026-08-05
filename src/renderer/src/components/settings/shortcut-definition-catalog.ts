@@ -10,6 +10,7 @@ import { findTerminalQuickCommandConflictForAction } from '../../../../shared/te
 import type { ActivePluginCommand } from '@/store/plugin-panels'
 import { buildPluginCommandKeybindingDefinitions } from '@/lib/plugin-command-keybindings'
 import { disabledAgentTabActionIds, groupDefinitions, type ShortcutGroup } from './shortcut-groups'
+import { formatKeybindingConflictWithQuickCommand } from '@/lib/quick-command-keybinding-conflict-copy'
 
 export type ShortcutDefinitionCatalog = {
   groups: ShortcutGroup[]
@@ -33,9 +34,7 @@ export function getQuickCommandConflictMessageForAction(
     keybindings,
     additionalDefinitions
   })
-  return conflict
-    ? `${formatKeybindingList([conflict.binding], platform)} conflicts with Quick Command “${conflict.ownerLabel}”.`
-    : null
+  return conflict ? formatKeybindingConflictWithQuickCommand(conflict, platform) : null
 }
 
 export function buildShortcutDefinitionCatalog(options: {

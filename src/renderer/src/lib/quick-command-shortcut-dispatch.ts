@@ -12,6 +12,7 @@ import { useAppStore } from '@/store'
 import { isFloatingWorkspacePanelFocused } from '@/lib/floating-workspace-terminal-actions'
 import { runQuickCommandInNewTab } from '@/lib/run-quick-command-in-new-tab'
 import { translate } from '@/i18n/i18n'
+import { getReservedQuickCommandKeybindings } from '@/lib/quick-command-keybinding-conflict-copy'
 
 type FocusedQuickCommandContext = {
   element: HTMLElement
@@ -160,7 +161,7 @@ export function dispatchQuickCommandShortcut(
     repoId,
     keybindings: store.keybindings,
     additionalDefinitions: options.additionalDefinitions,
-    reservedBindings: [{ binding: 'Mod+Enter', label: 'Save dialog' }]
+    reservedBindings: getReservedQuickCommandKeybindings()
   }
   const resolution = options.commandId
     ? resolveTerminalQuickCommandById({ ...common, commandId: options.commandId })

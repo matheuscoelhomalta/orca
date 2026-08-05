@@ -25,7 +25,6 @@ import { getScreenSubmitShortcutLabel, isScreenSubmitShortcut } from '@/lib/scre
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
 import { useAppStore } from '@/store'
 import { findTerminalQuickCommandKeybindingConflict } from '../../../../shared/terminal-quick-command-keybindings'
-import { formatKeybindingList } from '../../../../shared/keybindings'
 import { TerminalQuickCommandActionToggle } from './TerminalQuickCommandActionToggle'
 import { TerminalQuickCommandAdvancedSection } from './TerminalQuickCommandAdvancedSection'
 import { TerminalQuickCommandContentSection } from './TerminalQuickCommandContentSection'
@@ -38,6 +37,10 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useEditablePluginCommands } from '@/store/plugin-panels'
 import { buildPluginCommandKeybindingDefinitions } from '@/lib/plugin-command-keybindings'
+import {
+  formatQuickCommandKeybindingConflict,
+  getReservedQuickCommandKeybindings
+} from '@/lib/quick-command-keybinding-conflict-copy'
 
 type TerminalQuickCommandDialogMode = 'add' | 'edit'
 
@@ -168,12 +171,12 @@ export function TerminalQuickCommandDialog({
           platform,
           keybindings: overrides,
           additionalDefinitions: pluginDefinitions,
-          reservedBindings: [{ binding: 'Mod+Enter', label: 'Save dialog' }]
+          reservedBindings: getReservedQuickCommandKeybindings()
         })
       : null
   const shortcutConflict = getShortcutConflict(draft.keybinding)
   const shortcutConflictError = shortcutConflict
-    ? `${formatKeybindingList([shortcutConflict.binding], platform)} conflicts with ${shortcutConflict.ownerLabel}.`
+    ? formatQuickCommandKeybindingConflict(shortcutConflict, platform)
     : null
   const shortcutError = shortcutCaptureError ?? shortcutConflictError
 
@@ -186,7 +189,7 @@ export function TerminalQuickCommandDialog({
     )
     if (latestShortcutConflict) {
       setShortcutCaptureError(
-        `${formatKeybindingList([latestShortcutConflict.binding], platform)} conflicts with ${latestShortcutConflict.ownerLabel}.`
+        formatQuickCommandKeybindingConflict(latestShortcutConflict, platform)
       )
       setAdvancedOpen(true)
       return
