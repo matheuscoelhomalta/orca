@@ -126,10 +126,21 @@ export function TerminalQuickCommandDialog({
   }
 
   const toggleOpenInBackground = (): void => {
-    setDraft((current) => ({
-      ...current,
-      ...(current.openInBackground ? { openInBackground: undefined } : { openInBackground: true })
-    }))
+    if (!draft.openInBackground && !isTerminalAgentQuickCommand(draft)) {
+      draftMemoryRef.current = {
+        ...draftMemoryRef.current,
+        terminalAppendEnter: true
+      }
+    }
+    setDraft((current) => {
+      if (current.openInBackground) {
+        return { ...current, openInBackground: undefined }
+      }
+      if (isTerminalAgentQuickCommand(current)) {
+        return { ...current, openInBackground: true }
+      }
+      return { ...current, openInBackground: true, appendEnter: true }
+    })
   }
 
   const saveDraft = (): void => {
@@ -148,7 +159,7 @@ export function TerminalQuickCommandDialog({
           label: draft.label.trim(),
           action: 'terminal-command',
           command: draft.command.trimEnd(),
-          appendEnter: draft.appendEnter,
+          appendEnter: draft.openInBackground ? true : draft.appendEnter,
           scope: selectedScope,
           ...(draft.openInBackground ? { openInBackground: true } : {})
         }

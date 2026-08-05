@@ -107,6 +107,40 @@ describe('TerminalQuickCommandDialog animation structure', () => {
     )
   })
 
+  it('makes background terminal commands submitting and exposes the canonical focus ring', async () => {
+    const { onSave } = await renderDialog({
+      id: 'qc-1',
+      label: 'Start dev server',
+      action: 'terminal-command',
+      command: 'npm run dev',
+      appendEnter: false,
+      scope: { type: 'global' }
+    })
+    const advanced = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Advanced'
+    )
+    const background = document.body.querySelector<HTMLButtonElement>(
+      'button[aria-label="Toggle open in background"]'
+    )
+    const save = document.body.querySelector<HTMLButtonElement>('button[title^="Save ("]')
+
+    expect(background?.className).toContain('focus-visible:ring-[3px]')
+    expect(background?.className).toContain('focus-visible:ring-ring/50')
+    expect(background?.tabIndex).toBe(0)
+    await act(async () => {
+      advanced!.click()
+      background!.focus()
+      background!.click()
+    })
+    await act(async () => {
+      save!.click()
+    })
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ openInBackground: true, appendEnter: true })
+    )
+  })
+
   it('keeps collapsed advanced controls inert', async () => {
     await renderDialog({
       id: 'qc-1',

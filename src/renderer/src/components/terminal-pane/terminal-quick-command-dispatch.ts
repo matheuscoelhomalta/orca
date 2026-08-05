@@ -6,6 +6,7 @@ import {
   shouldOpenTerminalQuickCommandInBackground
 } from '../../../../shared/terminal-quick-commands'
 import { recordTerminalUserInputForLeaf } from './terminal-input-activity'
+import type { PaneCwdMap } from './resolve-split-cwd'
 
 type QuickCommandPane = {
   leafId: string
@@ -20,6 +21,14 @@ type QuickCommandTransport = {
 
 export function shouldRunTerminalQuickCommandInNewTab(command: TerminalQuickCommand): boolean {
   return isTerminalAgentQuickCommand(command) || shouldOpenTerminalQuickCommandInBackground(command)
+}
+
+export function resolveTerminalQuickCommandInitialCwd(
+  paneId: number | null,
+  paneCwdMap: PaneCwdMap,
+  fallbackCwd: string
+): string {
+  return (paneId === null ? null : paneCwdMap.get(paneId)?.cwd) || fallbackCwd
 }
 
 export function sendTerminalQuickCommandToPane({

@@ -8,6 +8,7 @@ vi.mock('./terminal-input-activity', () => ({
   recordTerminalUserInputForLeaf: mocks.recordTerminalUserInputForLeaf
 }))
 import {
+  resolveTerminalQuickCommandInitialCwd,
   sendTerminalQuickCommandToPane,
   shouldRunTerminalQuickCommandInNewTab
 } from './terminal-quick-command-dispatch'
@@ -169,5 +170,29 @@ describe('shouldRunTerminalQuickCommandInNewTab', () => {
         appendEnter: true
       })
     ).toBe(false)
+  })
+})
+
+describe('resolveTerminalQuickCommandInitialCwd', () => {
+  it('preserves the selected pane cwd across POSIX and Windows hosts', () => {
+    expect(
+      resolveTerminalQuickCommandInitialCwd(
+        2,
+        new Map([[2, { cwd: 'C:\\repo\\packages\\app', confirmed: true }]]),
+        'C:\\repo'
+      )
+    ).toBe('C:\\repo\\packages\\app')
+    expect(
+      resolveTerminalQuickCommandInitialCwd(
+        3,
+        new Map([[3, { cwd: '/repo/packages/app', confirmed: true }]]),
+        '/repo'
+      )
+    ).toBe('/repo/packages/app')
+  })
+
+  it('falls back to the workspace cwd when the selected pane has no report', () => {
+    expect(resolveTerminalQuickCommandInitialCwd(2, new Map(), '/repo')).toBe('/repo')
+    expect(resolveTerminalQuickCommandInitialCwd(null, new Map(), '/repo')).toBe('/repo')
   })
 })

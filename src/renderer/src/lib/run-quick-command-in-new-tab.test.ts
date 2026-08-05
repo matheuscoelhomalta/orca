@@ -3,6 +3,7 @@ import { runQuickCommandInNewTab } from './run-quick-command-in-new-tab'
 
 type MockStoreState = {
   createTab: ReturnType<typeof vi.fn>
+  queueTabInitialCwd: ReturnType<typeof vi.fn>
   queueTabStartupCommand: ReturnType<typeof vi.fn>
   setActiveTabType: ReturnType<typeof vi.fn>
   setTabBarOrder: ReturnType<typeof vi.fn>
@@ -20,7 +21,10 @@ type MockStoreState = {
 
 const mocks = vi.hoisted(() => ({
   launchAgentInNewTab: vi.fn(),
-  requestBackgroundTerminalWorktreeMount: vi.fn()
+  requestBackgroundTerminalWorktreeMount: vi.fn(),
+  createWebRuntimeSessionTerminal: vi.fn(),
+  getRuntimeEnvironmentIdForWorktree: vi.fn(),
+  isWebRuntimeSessionActive: vi.fn()
 }))
 
 let mockState: MockStoreState
@@ -39,9 +43,19 @@ vi.mock('@/components/terminal/background-terminal-worktree-mount', () => ({
   requestBackgroundTerminalWorktreeMount: mocks.requestBackgroundTerminalWorktreeMount
 }))
 
+vi.mock('@/lib/worktree-runtime-owner', () => ({
+  getRuntimeEnvironmentIdForWorktree: mocks.getRuntimeEnvironmentIdForWorktree
+}))
+
+vi.mock('@/runtime/web-runtime-session', () => ({
+  createWebRuntimeSessionTerminal: mocks.createWebRuntimeSessionTerminal,
+  isWebRuntimeSessionActive: mocks.isWebRuntimeSessionActive
+}))
+
 function createStoreState(): MockStoreState {
   return {
     createTab: vi.fn(() => ({ id: 'tab-new' })),
+    queueTabInitialCwd: vi.fn(),
     queueTabStartupCommand: vi.fn(),
     setActiveTabType: vi.fn(),
     setTabBarOrder: vi.fn(),
@@ -62,6 +76,12 @@ describe('runQuickCommandInNewTab', () => {
     mockState = createStoreState()
     mocks.launchAgentInNewTab.mockReset()
     mocks.requestBackgroundTerminalWorktreeMount.mockReset()
+    mocks.createWebRuntimeSessionTerminal.mockReset()
+    mocks.createWebRuntimeSessionTerminal.mockResolvedValue({ status: 'created' })
+    mocks.getRuntimeEnvironmentIdForWorktree.mockReset()
+    mocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue(null)
+    mocks.isWebRuntimeSessionActive.mockReset()
+    mocks.isWebRuntimeSessionActive.mockImplementation((value) => Boolean(value))
   })
 
   it('flattens multiline quick commands before queuing', () => {
@@ -128,6 +148,55 @@ describe('runQuickCommandInNewTab', () => {
       tabIds: ['tab-new']
     })
     expect(mockState.setActiveTabType).not.toHaveBeenCalled()
+  })
+
+  it('inherits the selected pane cwd for local, SSH, and folder-workspace terminal creation', () => {
+    runQuickCommandInNewTab({
+      command: {
+        id: 'test',
+        label: 'Test',
+        command: 'pnpm test',
+        appendEnter: true,
+        openInBackground: true
+      },
+      worktreeId: 'folder::workspace',
+      groupId: 'group-1',
+      initialCwd: 'C:\\Users\\dev\\repo\\packages\\app'
+    })
+
+    expect(mockState.queueTabInitialCwd).toHaveBeenCalledWith(
+      'tab-new',
+      'C:\\Users\\dev\\repo\\packages\\app'
+    )
+  })
+
+  it('routes background terminal commands and cwd through the paired host', () => {
+    mocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue('runtime-1')
+
+    const result = runQuickCommandInNewTab({
+      command: {
+        id: 'test',
+        label: 'Test',
+        command: 'cd packages\npnpm test',
+        appendEnter: false,
+        openInBackground: true
+      },
+      worktreeId: 'wt-1',
+      groupId: 'group-1',
+      initialCwd: '/repo/packages/app'
+    })
+
+    expect(result).toBeNull()
+    expect(mocks.createWebRuntimeSessionTerminal).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+      environmentId: 'runtime-1',
+      targetGroupId: 'group-1',
+      command: 'cd packages; pnpm test',
+      cwd: '/repo/packages/app',
+      activate: false
+    })
+    expect(mockState.createTab).not.toHaveBeenCalled()
+    expect(mockState.queueTabStartupCommand).not.toHaveBeenCalled()
   })
 
   it('launches agent quick commands through the programmatic agent prompt path', () => {
@@ -208,7 +277,8 @@ describe('runQuickCommandInNewTab', () => {
         openInBackground: true
       },
       worktreeId: 'repo::worktree',
-      groupId: 'group-1'
+      groupId: 'group-1',
+      initialCwd: '/repo/packages/app'
     })
 
     expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith({
@@ -216,6 +286,7 @@ describe('runQuickCommandInNewTab', () => {
       prompt: 'Review this diff',
       worktreeId: 'repo::worktree',
       groupId: 'group-1',
+      initialCwd: '/repo/packages/app',
       activate: false,
       launchSource: 'quick_command',
       quickCommandLabel: 'Review'

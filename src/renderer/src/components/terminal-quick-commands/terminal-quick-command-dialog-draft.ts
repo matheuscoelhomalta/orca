@@ -27,7 +27,7 @@ export function createTerminalQuickCommandDialogDraftMemory(
   }
   return {
     terminalCommand: command.command,
-    terminalAppendEnter: command.appendEnter,
+    terminalAppendEnter: command.openInBackground ? true : command.appendEnter,
     agent: fallbackAgent,
     agentPrompt: ''
   }
@@ -47,7 +47,7 @@ export function rememberTerminalQuickCommandDialogDraft(
   return {
     ...memory,
     terminalCommand: draft.command,
-    terminalAppendEnter: draft.appendEnter
+    terminalAppendEnter: draft.openInBackground ? true : draft.appendEnter
   }
 }
 
@@ -87,7 +87,7 @@ export function switchTerminalQuickCommandDialogAction(
       ...base,
       action: 'terminal-command',
       command: nextMemory.terminalCommand,
-      appendEnter: nextMemory.terminalAppendEnter
+      appendEnter: base.openInBackground ? true : nextMemory.terminalAppendEnter
     }
   }
 }

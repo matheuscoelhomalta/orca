@@ -74,7 +74,7 @@ export function TerminalQuickCommandAdvancedSection({
               openInBackground={draft.openInBackground === true}
               onToggle={toggleOpenInBackground}
             />
-            {!isTerminalAgentQuickCommand(draft) ? (
+            {!isTerminalAgentQuickCommand(draft) && !draft.openInBackground ? (
               <TerminalQuickCommandAppendEnterSwitch
                 appendEnter={draft.appendEnter}
                 onToggle={toggleAppendEnter}

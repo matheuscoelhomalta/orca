@@ -9,6 +9,7 @@ import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner
 import type { PaneCwdMap } from './resolve-split-cwd'
 import type { TerminalQuickCommand } from '../../../../shared/types'
 import {
+  resolveTerminalQuickCommandInitialCwd,
   sendTerminalQuickCommandToPane,
   shouldRunTerminalQuickCommandInNewTab
 } from './terminal-quick-command-dispatch'
@@ -454,7 +455,13 @@ export function useTerminalPaneContextMenu({
 
   const onQuickCommand = (command: TerminalQuickCommand): void => {
     if (shouldRunTerminalQuickCommandInNewTab(command)) {
-      runQuickCommandInNewTab({ command, worktreeId, groupId })
+      const pane = resolveMenuPane()
+      const initialCwd = resolveTerminalQuickCommandInitialCwd(
+        pane?.id ?? null,
+        paneCwdRef.current,
+        fallbackCwd
+      )
+      runQuickCommandInNewTab({ command, worktreeId, groupId, initialCwd })
       return
     }
 

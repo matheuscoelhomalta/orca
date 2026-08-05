@@ -2,6 +2,11 @@ import { useAppStore } from '@/store'
 import { requestBackgroundTerminalWorktreeMount } from '@/components/terminal/background-terminal-worktree-mount'
 import { reconcileTabOrder } from '@/components/tab-bar/reconcile-order'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
+import {
+  createWebRuntimeSessionTerminal,
+  isWebRuntimeSessionActive
+} from '@/runtime/web-runtime-session'
 import {
   flattenTerminalQuickCommand,
   isTerminalAgentQuickCommand,
@@ -16,6 +21,8 @@ export type RunQuickCommandInNewTabArgs = {
   /** Tab group the user clicked from. Keeps the spawned terminal in the
    *  pane the user initiated from when available. */
   groupId?: string | null
+  /** Initial cwd inherited from the terminal pane that launched the command. */
+  initialCwd?: string | null
 }
 
 function resolveQuickCommandGroupId(
@@ -49,7 +56,8 @@ function resolveQuickCommandGroupId(
 export function runQuickCommandInNewTab({
   command,
   worktreeId,
-  groupId
+  groupId,
+  initialCwd
 }: RunQuickCommandInNewTabArgs): { tabId: string } | null {
   const targetGroupId = groupId ?? undefined
   const openInBackground = shouldOpenTerminalQuickCommandInBackground(command)
@@ -62,6 +70,7 @@ export function runQuickCommandInNewTab({
       prompt: command.prompt,
       worktreeId,
       groupId: targetGroupId,
+      ...(initialCwd?.trim() ? { initialCwd } : {}),
       ...(openInBackground ? { activate: false } : {}),
       launchSource: 'quick_command',
       quickCommandLabel: command.label
@@ -88,11 +97,30 @@ export function runQuickCommandInNewTab({
     return null
   }
   const store = useAppStore.getState()
+  const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(store, worktreeId)
+  if (isWebRuntimeSessionActive(runtimeEnvironmentId)) {
+    void createWebRuntimeSessionTerminal({
+      worktreeId,
+      environmentId: runtimeEnvironmentId,
+      targetGroupId,
+      command: flattenTerminalQuickCommand(command).command,
+      ...(initialCwd?.trim() ? { cwd: initialCwd } : {}),
+      activate: !openInBackground
+    })
+    const launchedGroupId = groupId ?? store.activeGroupIdByWorktree[worktreeId] ?? null
+    if (launchedGroupId) {
+      store.setRecentQuickCommandForGroup(launchedGroupId, command.id)
+    }
+    return null
+  }
   const tab = store.createTab(worktreeId, targetGroupId, undefined, {
     quickCommandLabel: command.label,
     ...(openInBackground ? { activate: false } : {})
   })
 
+  if (initialCwd?.trim()) {
+    store.queueTabInitialCwd(tab.id, initialCwd)
+  }
   store.queueTabStartupCommand(tab.id, {
     command: flattenTerminalQuickCommand(command).command
   })

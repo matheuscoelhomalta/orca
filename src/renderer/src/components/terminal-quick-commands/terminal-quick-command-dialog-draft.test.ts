@@ -141,6 +141,35 @@ describe('terminal quick command dialog draft transitions', () => {
     expect(toAgent.draft.openInBackground).toBe(true)
     expect(backToTerminal.draft.openInBackground).toBe(true)
   })
+
+  it('restores background terminal commands as submitted execution', () => {
+    const command: TerminalQuickCommand = {
+      id: 'qc-1',
+      label: 'Background work',
+      action: 'terminal-command',
+      command: 'pnpm test',
+      appendEnter: false,
+      scope: { type: 'global' },
+      openInBackground: true
+    }
+
+    const toAgent = switchTerminalQuickCommandDialogAction(
+      command,
+      'agent-prompt',
+      createTerminalQuickCommandDialogDraftMemory(command, 'codex')
+    )
+    const backToTerminal = switchTerminalQuickCommandDialogAction(
+      toAgent.draft,
+      'terminal-command',
+      toAgent.memory
+    )
+
+    expect(backToTerminal.draft).toMatchObject({
+      action: 'terminal-command',
+      appendEnter: true,
+      openInBackground: true
+    })
+  })
 })
 
 describe('terminal quick command dialog scope transitions', () => {

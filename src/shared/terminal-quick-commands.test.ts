@@ -183,6 +183,26 @@ describe('terminal quick commands', () => {
     ])
   })
 
+  it('normalizes background terminal commands to submitted execution', () => {
+    expect(
+      normalizeTerminalQuickCommands([
+        {
+          id: 'background',
+          label: 'Background',
+          command: 'pnpm test',
+          appendEnter: false,
+          openInBackground: true
+        }
+      ])
+    ).toEqual([
+      expect.objectContaining({
+        id: 'background',
+        appendEnter: true,
+        openInBackground: true
+      })
+    ])
+  })
+
   it('keeps larger reusable agent prompts while bounding shell commands separately', () => {
     const largePrompt = 'Review this diff.\n'.repeat(320)
     const overLimitPrompt = 'x'.repeat(6001)
@@ -277,7 +297,7 @@ describe('terminal quick commands', () => {
         openInBackground: true
       }
     ])
-    const edited = { ...background!, label: 'Edited' }
+    const edited = { ...background!, label: 'Edited', appendEnter: false }
     delete edited.openInBackground
 
     expect(
@@ -285,7 +305,7 @@ describe('terminal quick commands', () => {
         type: 'upsert',
         command: edited
       })
-    ).toEqual([{ ...edited, openInBackground: true }])
+    ).toEqual([{ ...edited, appendEnter: true, openInBackground: true }])
   })
 
   it('matches global commands everywhere and repo commands only in their repo', () => {
@@ -344,6 +364,15 @@ describe('terminal quick commands', () => {
         appendEnter: false
       })
     ).toBe('git status')
+    expect(
+      buildTerminalQuickCommandInput({
+        id: 'background',
+        label: 'Background',
+        command: 'pnpm test',
+        appendEnter: false,
+        openInBackground: true
+      })
+    ).toBe('pnpm test\r')
   })
 
   it('classifies quick command actions and body text', () => {

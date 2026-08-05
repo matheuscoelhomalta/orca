@@ -52,6 +52,12 @@ export function shouldOpenTerminalQuickCommandInBackground(command: TerminalQuic
   return command.openInBackground === true
 }
 
+export function shouldAppendEnterToTerminalQuickCommand(
+  command: TerminalCommandQuickCommand
+): boolean {
+  return shouldOpenTerminalQuickCommandInBackground(command) || command.appendEnter
+}
+
 export function terminalQuickCommandMatchesRepo(
   command: TerminalQuickCommand,
   repoId: string | null
@@ -155,7 +161,7 @@ export function normalizeTerminalQuickCommands(input: unknown): TerminalQuickCom
         ...base,
         action: 'terminal-command',
         command: command.slice(0, MAX_QUICK_COMMAND_TERMINAL_TEXT_LENGTH),
-        appendEnter: record.appendEnter !== false
+        appendEnter: record.openInBackground === true || record.appendEnter !== false
       })
     }
 
@@ -268,15 +274,19 @@ export function applyTerminalQuickCommandMutation(
     return [...commands, mutation.command]
   }
   const existing = commands[existingIndex]
-  const next =
+  const merged =
     existing.openInBackground && mutation.command.openInBackground === undefined
       ? { ...mutation.command, openInBackground: true }
       : mutation.command
+  const next =
+    !isTerminalAgentQuickCommand(merged) && merged.openInBackground && !merged.appendEnter
+      ? { ...merged, appendEnter: true }
+      : merged
   return commands.map((command, index) => (index === existingIndex ? next : command))
 }
 
 export function buildTerminalQuickCommandInput(command: TerminalCommandQuickCommand): string {
-  return command.appendEnter ? `${command.command}\r` : command.command
+  return shouldAppendEnterToTerminalQuickCommand(command) ? `${command.command}\r` : command.command
 }
 
 const LINE_BREAK_RE = /\r\n|\r|\n/

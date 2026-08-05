@@ -150,4 +150,32 @@ describe('TerminalContextMenu', () => {
     expect(shortcuts.list).toContain('Alt+Shift+D')
     expect(shortcuts.list.some((shortcut) => shortcut.includes(','))).toBe(false)
   })
+
+  it('labels only foreground non-submitting quick commands as Insert', () => {
+    renderMenu({
+      globalQuickCommands: [
+        {
+          id: 'background',
+          label: 'Background',
+          command: 'pnpm test',
+          appendEnter: false,
+          openInBackground: true
+        }
+      ]
+    })
+    expect(shortcuts.list).not.toContain('Insert')
+
+    shortcuts.list = []
+    renderMenu({
+      globalQuickCommands: [
+        {
+          id: 'insert',
+          label: 'Insert',
+          command: 'pnpm test',
+          appendEnter: false
+        }
+      ]
+    })
+    expect(shortcuts.list).toContain('Insert')
+  })
 })
