@@ -44,6 +44,13 @@ function resolveQuickCommandGroupId(
   )
 }
 
+function resolveQuickCommandLaunchGroupId(
+  worktreeId: string,
+  requestedGroupId: string | null | undefined
+): string | null {
+  return requestedGroupId ?? useAppStore.getState().activeGroupIdByWorktree[worktreeId] ?? null
+}
+
 function notifyAgentPromptDeliveryFailed(): void {
   toast.error(
     translate(
@@ -98,8 +105,7 @@ export function runQuickCommandInNewTab({
       return { tabId: result.tabId }
     }
     if (openInBackground && result?.promptDeliveryResult) {
-      const launchedGroupId =
-        groupId ?? useAppStore.getState().activeGroupIdByWorktree[worktreeId] ?? null
+      const launchedGroupId = resolveQuickCommandLaunchGroupId(worktreeId, groupId)
       void result.promptDeliveryResult
         .then(({ delivered, failureNotified }) => {
           if (!delivered) {
@@ -116,6 +122,12 @@ export function runQuickCommandInNewTab({
           console.error('Quick Command prompt delivery failed', error)
           notifyAgentPromptDeliveryFailed()
         })
+    } else if (result?.focusAfterMenuClose === 'structured-session') {
+      // Why: foreground structured launches publish their tab asynchronously.
+      const launchedGroupId = resolveQuickCommandLaunchGroupId(worktreeId, groupId)
+      if (launchedGroupId) {
+        useAppStore.getState().setRecentQuickCommandForGroup(launchedGroupId, historyId)
+      }
     }
     return null
   }
